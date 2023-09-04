@@ -1,0 +1,132 @@
+#!/bin/bash
+# This script is used to process webm video:
+#    - Convert from webm (VP9 codec) to MP4 video. (ffmpeg required)
+#    - Generate subtitles for the video. (openai whisper required)
+#    - Remove webm video. (optional)
+#
+# Usage:
+#    vproc [input] [output] [keep original]
+#
+# where input can be either a file or a directory including all videos to
+# reformat and transcribe.
+
+BOLD='\033[1m'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # end token
+
+# Check if two required parameters are provided
+if [[ $# -lt 4 ]]; then
+	printf "${BOLD}Usage:${NC} -s <src_file|src_dir> -d <dst_file|dst_dir> -k [keep_original,True|False(default)]\n"
+	exit 1
+fi
+
+src=""
+dst=""
+suffix="webm" # change suffix here manually
+keep_original="False"
+
+# convert video from webm to mp4 with ffmpeg
+convert() {
+	input=$1
+	output=$2
+	printf "${YELLOW}\tConverting ${input} to ${output} ...${NC}\n"
+	ffmpeg -i "${input}" -threads 8 "${output}"
+	printf "${YELLOW}\tOk, done with conversion.${NC}\n"
+}
+
+# generate srt subtitles for the video with openai whisper
+generate_subtiles() {
+	input=$1
+	output="${input%.*}.srt"
+	printf "${YELLOW}\tGenerating subtitle for ${input} ...${NC}\n"
+	whisper "${input}" --model base.en --language en --output_dir . --output_format srt --verbose False --fp16 False
+	printf "${YELLOW}\tOk, down with generating subtile.${NC}\n"
+}
+
+# generate default output name
+default_name() {
+	src=$1
+	timestamp=$(date -u +%Y-%m-%d)
+	path_without_extension=${src%.*}
+	dirname=$(dirname "$path_without_extension")
+	basename=$(basename "$path_without_extension")
+	# if dst name is not specified, use out_time.mp4 as default name
+	dst="${dirname}/${basename}-${timestamp}.mp4"
+	echo "${dst}"
+}
+
+process_file() {
+	src="$1"
+	dst="$2"
+	printf "${BLUE}INFO: Initialize the task for ${src}.${NC}\n"
+	convert "$src" "$dst" && generate_subtiles "$dst"
+	if [ "$keep_original" = false ]; then
+		rm -f $src
+		printf "${YELLOW}\t${src} deleted.${NC}\n"
+	fi
+	printf "${BLUE}INFO: Done for ${src}.${NC}\n"
+}
+
+# TODO: Parse arguments
+while getopts "s:d:" opt; do
+	case $opt in
+	s)
+		src="$OPTARG"
+		;;
+	d)
+		dst="$OPTARG"
+		;;
+	*)
+		printf "${BOLD}Usage:${NC} -s <src_file|src_dir> -d <dst_file|dst_dir> -k [keep_original,True(default)|False]\n"
+		exit 1
+		;;
+	esac
+done
+
+# Shift the processed arguments to access optional parameters
+shift $((OPTIND - 1))
+
+# Check if an optional parameter is provided as expected, True or False
+if [ $# -gt 0 ]; then
+	keep_original="$1"
+fi
+if [ "$keep_original" == "True" ] || [ -z "$keep_original" ]; then
+	keep_original=true
+elif [ "$keep_original" == "False" ]; then
+	keep_original=false
+else
+	printf "${RED}Error: The optional parameter should be either 'True' or 'False'${NC}\n"
+	printf "${BOLD}Usage:${NC} -s <src_file|src_dir> -d <dst_file|dst_dir> -k [keep_original,True(default)|False]\n"
+	exit 1
+fi
+
+src=$(readlink -f "$src")
+dst=$(readlink -f "$dst")
+
+# TODO: Check if src and dst are directories or files
+if [ -f "${src}" ]; then
+	is_file=true
+elif [ -d "$src" ] && [ -d "$dst" ]; then
+	is_file=false
+else
+	printf "${RED}Error: file not found.${NC}\n"
+	exit 1
+fi
+
+if [ "$is_file" = true ]; then
+	if [ -d "${dst}" ]; then
+		dst=$(default_name "${src}")
+	else
+		printf "${RED}Error: dst not found ${NC}\n"
+		exit 1
+	fi
+	process_file "${src}" "${dst}"
+else
+	for file in "${src}"/*.webm; do
+		dst=$(default_name "${file}")
+		process_file "${file}" "${dst}"
+	done
+fi
