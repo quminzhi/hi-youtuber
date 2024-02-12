@@ -19,7 +19,7 @@ NC='\033[0m' # end token
 
 # Check if two required parameters are provided
 if [[ $# -lt 4 ]]; then
-	printf "${BOLD}Usage:${NC} -s <src_file|src_dir> -d <dst_file|dst_dir> -k [keep_original,True|False(default)]\n"
+	printf "${BOLD}Usage:${NC} vproc -s <src_file|src_dir> -d <dst_file|dst_dir> -k [keep_original,True|False(default)]\n"
 	exit 1
 fi
 
