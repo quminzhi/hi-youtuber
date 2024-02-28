@@ -1,11 +1,10 @@
 #!/bin/bash
-# This script is used to process webm video:
+# This script is used to convert webm to mp4 format:
 #    - Convert from webm (VP9 codec) to MP4 video. (ffmpeg required)
-#    - Generate subtitles for the video. (openai whisper required)
 #    - Remove webm video. (optional)
 #
 # Usage:
-#    vproc [input] [output] [keep original]
+#    tomp4 [input] [output] [keep original]
 #
 # where input can be either a file or a directory including all videos to
 # reformat and transcribe.
@@ -19,7 +18,7 @@ NC='\033[0m' # end token
 
 # Check if two required parameters are provided
 if [[ $# -lt 4 ]]; then
-	printf "${BOLD}Usage:${NC} vproc -s <src_file|src_dir> -d <dst_file|dst_dir> -k [keep_original,True|False(default)]\n"
+	printf "${BOLD}Usage:${NC} tomp4 -s <src_file|src_dir> -d <dst_file|dst_dir> -k [keep_original,True|False(default)]\n"
 	exit 1
 fi
 
@@ -35,15 +34,6 @@ convert() {
 	printf "${YELLOW}\tConverting ${input} to ${output} ...${NC}\n"
 	ffmpeg -i "${input}" -threads 8 "${output}"
 	printf "${YELLOW}\tOk, done with conversion.${NC}\n"
-}
-
-# generate srt subtitles for the video with openai whisper
-generate_subtiles() {
-	input=$1
-	output="${input%.*}.srt"
-	printf "${YELLOW}\tGenerating subtitle for ${input} ...${NC}\n"
-	whisper "${input}" --model base.en --language en --output_dir . --output_format srt --verbose False --fp16 False
-	printf "${YELLOW}\tOk, down with generating subtile.${NC}\n"
 }
 
 # generate default output name
@@ -62,7 +52,7 @@ process_file() {
 	src="$1"
 	dst="$2"
 	printf "${BLUE}INFO: Initialize the task for ${src}.${NC}\n"
-	convert "$src" "$dst" && generate_subtiles "$dst"
+	convert "$src" "$dst"
 	if [ "$keep_original" == false ]; then
 		rm -f $src
 		printf "${YELLOW}\t${src} deleted.${NC}\n"

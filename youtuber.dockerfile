@@ -15,6 +15,7 @@ RUN apt-get update \
 COPY ./bin/trans.en /usr/local/bin/trans.en
 COPY ./bin/trans.cn /usr/local/bin/trans.cn
 COPY ./bin/vproc /usr/local/bin/vproc
+COPY ./bin/tomp4 /usr/local/bin/tomp4
 RUN chmod a+x /usr/local/bin/trans.en && chmod a+x /usr/local/bin/trans.cn && chmod a+x /usr/local/bin/vproc
 
 WORKDIR /workspace
