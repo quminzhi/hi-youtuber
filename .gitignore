@@ -3,3 +3,4 @@ project/
 .cache/
 .bash_history
 download/
+*.prproj
